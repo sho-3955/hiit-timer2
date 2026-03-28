@@ -7,4 +7,3 @@ coverage/
 .env*
 .claude/
 plans/
-CLAUDE.md
