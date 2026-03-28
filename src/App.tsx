@@ -50,7 +50,7 @@ export default function App() {
 
   // Timer State
   const [isActive, setIsActive] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(initial.workTime);
+  const [timeLeft, setTimeLeft] = useState(READY_COUNTDOWN);
   const [currentPhase, setCurrentPhase] = useState<Phase>('READY');
   const [currentSet, setCurrentSet] = useState(1);
   const [currentCycle, setCurrentCycle] = useState(1);
@@ -124,11 +124,11 @@ export default function App() {
   const resetTimer = useCallback(() => {
     setIsActive(false);
     setCurrentPhase('READY');
-    setTimeLeft(workTime);
+    setTimeLeft(READY_COUNTDOWN);
     setCurrentSet(1);
     setCurrentCycle(1);
     if (timerRef.current) clearInterval(timerRef.current);
-  }, [workTime]);
+  }, []);
 
   const nextPhase = useCallback(() => {
     if (currentPhase === 'READY' || currentPhase === 'REST' || currentPhase === 'CYCLE_BREAK') {
@@ -348,14 +348,14 @@ export default function App() {
         {/* Progress Info */}
         <div className="flex justify-center items-center space-x-4 text-[15px] font-bold uppercase tracking-wide mb-5">
           <div className="flex items-center">
-            <span className="text-white/40 mr-2">SET:</span>
+            <span className="text-white/40 mr-2">{currentPhase === 'REST' ? 'NEXT SET:' : 'SET:'}</span>
             <span className="text-[#39FF14]">{currentSet}</span>
             <span className="text-white/20 mx-1">/</span>
             <span className="text-white/60">{sets}</span>
           </div>
           <div className="w-px h-5 bg-white/10" />
           <div className="flex items-center">
-            <span className="text-white/40 mr-2">CYCLE:</span>
+            <span className="text-white/40 mr-2">{currentPhase === 'CYCLE_BREAK' ? 'NEXT CYCLE:' : 'CYCLE:'}</span>
             <span className="text-[#39FF14]">{currentCycle}</span>
             <span className="text-white/20 mx-1">/</span>
             <span className="text-white/60">{cycles}</span>
