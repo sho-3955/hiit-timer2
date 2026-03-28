@@ -205,7 +205,7 @@ export default function App() {
   const progress = maxTime > 0 ? (timeLeft / maxTime) : 1;
 
   return (
-    <div className="h-dvh bg-[#121212] text-white font-sans flex flex-col items-center px-5 pt-4 pb-6 select-none overflow-hidden">
+    <div className="h-dvh bg-[#121212] text-white font-sans flex flex-col items-center px-5 pb-6 select-none overflow-hidden" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
       <header className="w-full max-w-md text-center mb-5">
         <h1 className="text-xl font-bold tracking-tight text-white/80">HIIT Timer</h1>
       </header>
