@@ -1,9 +1,58 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="100" fill="#121212"/>
-  <circle cx="256" cy="256" r="190" stroke="#222" stroke-width="12" fill="none"/>
-  <circle cx="256" cy="256" r="190" stroke="#39FF14" stroke-width="16"
-    fill="none" stroke-dasharray="850 349" stroke-linecap="round"
-    transform="rotate(-90 256 256)"/>
-  <text x="256" y="280" text-anchor="middle" font-family="monospace"
-    font-size="110" font-weight="bold" fill="white">20</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="96" y1="64" x2="416" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#20242C"/>
+      <stop offset="1" stop-color="#090B0F"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(182 150) rotate(47.7) scale(282.638)">
+      <stop stop-color="#FFFFFF" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="warm" x1="168" y1="149" x2="335" y2="316" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB36B"/>
+      <stop offset=".52" stop-color="#FF7A59"/>
+      <stop offset="1" stop-color="#FF5D8F"/>
+    </linearGradient>
+    <linearGradient id="cool" x1="340" y1="194" x2="190" y2="361" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8CF3FF"/>
+      <stop offset=".58" stop-color="#4FD6D2"/>
+      <stop offset="1" stop-color="#2CA9E1"/>
+    </linearGradient>
+    <linearGradient id="pulse" x1="196" y1="222" x2="323" y2="311" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD18A"/>
+      <stop offset=".45" stop-color="#FF7A59"/>
+      <stop offset="1" stop-color="#65E6E8"/>
+    </linearGradient>
+    <filter id="softShadow" x="84" y="56" width="344" height="384" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="12"/>
+      <feGaussianBlur stdDeviation="16"/>
+      <feColorMatrix values="0 0 0 0 0.0157 0 0 0 0 0.0353 0 0 0 0 0.0706 0 0 0 0.42 0"/>
+      <feBlend in2="BackgroundImageFix" result="effect1_dropShadow_1_2"/>
+      <feBlend in="SourceGraphic" in2="effect1_dropShadow_1_2" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#glow)"/>
+  <rect x="24" y="24" width="464" height="464" rx="88" stroke="white" stroke-opacity=".06" stroke-width="2"/>
+
+  <g filter="url(#softShadow)">
+    <path d="M256 96c16.569 0 30 13.431 30 30v13.982c46.824 8.325 84.492 44.708 95.3 91.131 3.153 13.54-5.15 27.069-18.74 30.002-13.589 2.933-27.268-5.661-30.422-19.201-8.565-36.795-41.169-63.914-80.138-63.914-45.497 0-82.5 37.003-82.5 82.5S206.503 343 252 343s82.5-37.003 82.5-82.5c0-13.807 11.193-25 25-25s25 11.193 25 25c0 73.111-59.389 132.5-132.5 132.5S119.5 333.611 119.5 260.5c0-60.337 40.411-111.408 95.5-127.607V126c0-16.569 13.431-30 30-30h11Z" fill="#F2F5F7" fill-opacity=".1"/>
+    <path d="M242 112h28c7.732 0 14 6.268 14 14v24h-56v-24c0-7.732 6.268-14 14-14Z" fill="#F4F7FA"/>
+    <path d="M208 94c0-8.837 7.163-16 16-16h64c8.837 0 16 7.163 16 16s-7.163 16-16 16h-64c-8.837 0-16-7.163-16-16Z" fill="#F4F7FA" fill-opacity=".88"/>
+
+    <circle cx="256" cy="260" r="118" stroke="white" stroke-opacity=".09" stroke-width="28"/>
+    <path d="M256 142c57.99 0 106.821 41.914 117.532 97.62" stroke="url(#warm)" stroke-width="28" stroke-linecap="round"/>
+    <path d="M352.944 327.263C331.63 359.85 294.832 381 253.094 381c-53.108 0-98.192-34.261-114.559-81.887" stroke="url(#cool)" stroke-width="28" stroke-linecap="round"/>
+
+    <circle cx="256" cy="260" r="78" fill="#10151C"/>
+    <circle cx="256" cy="260" r="77" stroke="white" stroke-opacity=".06" stroke-width="2"/>
+    <text x="256" y="281" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" letter-spacing="4" fill="url(#pulse)">HIIT</text>
+    <rect x="204" y="302" width="104" height="6" rx="3" fill="#F4F7FA" fill-opacity=".9"/>
+
+    <circle cx="336" cy="182" r="12" fill="#FF8D65"/>
+    <circle cx="172" cy="334" r="10" fill="#63E0E6"/>
+  </g>
 </svg>
