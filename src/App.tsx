@@ -163,47 +163,49 @@ export default function App() {
         </div>
 
         {/* Circular Timer */}
-        <div className="relative flex-1 flex justify-center items-center">
-          <svg className="w-64 h-64 transform -rotate-90">
-            <circle
-              cx="128"
-              cy="128"
-              r="120"
-              stroke="currentColor"
-              strokeWidth="8"
-              fill="transparent"
-              className="text-white/5"
-            />
-            <motion.circle
-              cx="128"
-              cy="128"
-              r="120"
-              stroke="currentColor"
-              strokeWidth="8"
-              fill="transparent"
-              strokeDasharray={2 * Math.PI * 120}
-              initial={{ strokeDashoffset: 0 }}
-              animate={{ strokeDashoffset: 2 * Math.PI * 120 * (1 - progress) }}
-              transition={{ duration: 0.5, ease: "linear" }}
-              className={currentPhase === 'WORK' ? 'text-[#39FF14]' : 'text-blue-400'}
-              style={{ filter: 'drop-shadow(0 0 8px currentColor)' }}
-            />
-          </svg>
+        <div className="flex-1 flex justify-center items-center min-h-0">
+          <div className="relative w-full aspect-square max-w-xs">
+            <svg viewBox="0 0 256 256" className="w-full h-full transform -rotate-90">
+              <circle
+                cx="128"
+                cy="128"
+                r="120"
+                stroke="currentColor"
+                strokeWidth="8"
+                fill="transparent"
+                className="text-white/5"
+              />
+              <motion.circle
+                cx="128"
+                cy="128"
+                r="120"
+                stroke="currentColor"
+                strokeWidth="8"
+                fill="transparent"
+                strokeDasharray={2 * Math.PI * 120}
+                initial={{ strokeDashoffset: 0 }}
+                animate={{ strokeDashoffset: 2 * Math.PI * 120 * (1 - progress) }}
+                transition={{ duration: 0.5, ease: "linear" }}
+                className={currentPhase === 'WORK' ? 'text-[#39FF14]' : 'text-blue-400'}
+                style={{ filter: 'drop-shadow(0 0 8px currentColor)' }}
+              />
+            </svg>
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentPhase}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="text-xs font-bold uppercase tracking-[0.2em] text-white/40 mb-1"
-              >
-                {currentPhase}
-              </motion.div>
-            </AnimatePresence>
-            <div className="text-5xl font-bold font-mono tabular-nums">
-              {formatTime(timeLeft)}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentPhase}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="text-xs font-bold uppercase tracking-[0.2em] text-white/40 mb-1"
+                >
+                  {currentPhase}
+                </motion.div>
+              </AnimatePresence>
+              <div className="text-5xl font-bold font-mono tabular-nums">
+                {formatTime(timeLeft)}
+              </div>
             </div>
           </div>
         </div>
