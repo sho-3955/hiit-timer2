@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback, Dispatch, SetStateAction } fr
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, Pause, RotateCcw, Plus, Minus } from 'lucide-react';
 
-type Phase = 'WORK' | 'REST' | 'COOLDOWN' | 'READY';
+type Phase = 'WORK' | 'REST' | 'COOLDOWN' | 'READY' | 'CYCLE_BREAK';
 
 const STORAGE_KEY = 'hiit-timer-settings';
 
@@ -16,6 +16,7 @@ interface Settings {
   restTime: number;
   sets: number;
   cycles: number;
+  cycleBreak: number;
 }
 
 const loadSettings = (): Settings => {
@@ -28,11 +29,14 @@ const loadSettings = (): Settings => {
         restTime: parsed.restTime ?? 10,
         sets: parsed.sets ?? 8,
         cycles: parsed.cycles ?? 1,
+        cycleBreak: parsed.cycleBreak ?? 120,
       };
     }
   } catch {}
-  return { workTime: 20, restTime: 10, sets: 8, cycles: 1 };
+  return { workTime: 20, restTime: 10, sets: 8, cycles: 1, cycleBreak: 120 };
 };
+
+const READY_COUNTDOWN = 5;
 
 export default function App() {
   const initial = loadSettings();
@@ -42,6 +46,7 @@ export default function App() {
   const [restTime, setRestTime] = useState(initial.restTime);
   const [sets, setSets] = useState(initial.sets);
   const [cycles, setCycles] = useState(initial.cycles);
+  const [cycleBreak, setCycleBreak] = useState(initial.cycleBreak);
 
   // Timer State
   const [isActive, setIsActive] = useState(false);
@@ -55,8 +60,8 @@ export default function App() {
 
   // Save settings to LocalStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ workTime, restTime, sets, cycles }));
-  }, [workTime, restTime, sets, cycles]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ workTime, restTime, sets, cycles, cycleBreak }));
+  }, [workTime, restTime, sets, cycles, cycleBreak]);
 
   // Format time MM:SS
   const formatTime = (seconds: number) => {
@@ -66,7 +71,7 @@ export default function App() {
   };
 
   // Total time calculation
-  const totalSeconds = (workTime + restTime) * sets * cycles - (restTime * cycles);
+  const totalSeconds = (workTime + restTime) * sets * cycles - (restTime * cycles) + cycleBreak * (cycles - 1);
   const displayTotal = formatTime(Math.max(0, totalSeconds));
 
   const isRunning = isActive || currentPhase !== 'READY';
@@ -107,6 +112,9 @@ export default function App() {
     } else if (phase === 'REST') {
       playBeep(440, 200);
       vibrate([100, 50, 100]);
+    } else if (phase === 'CYCLE_BREAK') {
+      playBeep(550, 200, 2);
+      vibrate([200, 100, 200]);
     } else if (phase === 'COOLDOWN') {
       playBeep(660, 300, 3);
       vibrate([300, 100, 300, 100, 300]);
@@ -123,7 +131,7 @@ export default function App() {
   }, [workTime]);
 
   const nextPhase = useCallback(() => {
-    if (currentPhase === 'READY' || currentPhase === 'REST') {
+    if (currentPhase === 'READY' || currentPhase === 'REST' || currentPhase === 'CYCLE_BREAK') {
       setCurrentPhase('WORK');
       setTimeLeft(workTime);
       notify('WORK');
@@ -135,11 +143,17 @@ export default function App() {
         notify('REST');
       } else {
         if (currentCycle < cycles) {
-          setCurrentPhase('REST');
-          setTimeLeft(restTime);
           setCurrentSet(1);
           setCurrentCycle(prev => prev + 1);
-          notify('REST');
+          if (cycleBreak > 0) {
+            setCurrentPhase('CYCLE_BREAK');
+            setTimeLeft(cycleBreak);
+            notify('CYCLE_BREAK');
+          } else {
+            setCurrentPhase('WORK');
+            setTimeLeft(workTime);
+            notify('WORK');
+          }
         } else {
           setIsActive(false);
           setCurrentPhase('COOLDOWN');
@@ -148,10 +162,14 @@ export default function App() {
         }
       }
     }
-  }, [currentPhase, currentSet, currentCycle, workTime, restTime, sets, cycles, notify]);
+  }, [currentPhase, currentSet, currentCycle, workTime, restTime, sets, cycles, cycleBreak, notify]);
 
   useEffect(() => {
     if (isActive && timeLeft > 0) {
+      // カウントダウン 3, 2, 1 でビープ音
+      if (timeLeft <= 3 && currentPhase !== 'COOLDOWN') {
+        playBeep(600, 100);
+      }
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => prev - 1);
       }, 1000);
@@ -162,13 +180,14 @@ export default function App() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive, timeLeft, nextPhase]);
+  }, [isActive, timeLeft, nextPhase, currentPhase, playBeep]);
 
   const toggleTimer = () => {
     initAudio();
-    if (currentPhase === 'READY') {
-      setCurrentPhase('WORK');
-      notify('WORK');
+    if (currentPhase === 'READY' && !isActive) {
+      setTimeLeft(READY_COUNTDOWN);
+      setIsActive(true);
+      return;
     }
     setIsActive(!isActive);
   };
@@ -178,8 +197,12 @@ export default function App() {
   };
 
   // Progress percentage for circular bar
-  const maxTime = currentPhase === 'WORK' ? workTime : restTime;
-  const progress = maxTime > 0 ? (timeLeft / maxTime) : 0;
+  const maxTime = currentPhase === 'WORK' ? workTime
+    : currentPhase === 'REST' ? restTime
+    : currentPhase === 'CYCLE_BREAK' ? cycleBreak
+    : (currentPhase === 'READY' && isActive) ? READY_COUNTDOWN
+    : 0;
+  const progress = maxTime > 0 ? (timeLeft / maxTime) : 1;
 
   return (
     <div className="h-dvh bg-[#121212] text-white font-sans flex flex-col items-center px-5 pt-4 pb-6 select-none overflow-hidden">
@@ -190,34 +213,34 @@ export default function App() {
       <main className="flex-1 w-full max-w-md flex flex-col min-h-0">
         {/* Settings Panel */}
         <div className={`bg-white/[0.02] rounded-2xl p-3.5 pb-3 transition-opacity ${isRunning ? 'opacity-50 pointer-events-none' : ''}`}>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-6 gap-x-3 gap-y-3.5">
+            <div className="col-span-3 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Work</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setWorkTime, -5, 5)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setWorkTime, -1, 1)} className="px-3 h-full hover:bg-white/10 transition-colors">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{formatTime(workTime)}</div>
-                <button onClick={() => adjustValue(setWorkTime, 5)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setWorkTime, 1)} className="px-3 h-full hover:bg-white/10 transition-colors">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="col-span-3 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Rest</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setRestTime, -5, 5)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setRestTime, -1, 1)} className="px-3 h-full hover:bg-white/10 transition-colors">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{formatTime(restTime)}</div>
-                <button onClick={() => adjustValue(setRestTime, 5)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setRestTime, 1)} className="px-3 h-full hover:bg-white/10 transition-colors">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="col-span-2 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Sets</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
                 <button onClick={() => adjustValue(setSets, -1)} className="px-3 h-full hover:bg-white/10 transition-colors">
@@ -230,7 +253,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="col-span-2 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Cycles</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
                 <button onClick={() => adjustValue(setCycles, -1)} className="px-3 h-full hover:bg-white/10 transition-colors">
@@ -242,15 +265,29 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            <div className="col-span-2 space-y-1.5">
+              <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">C.Break</label>
+              <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
+                <button onClick={() => adjustValue(setCycleBreak, -1, 0)} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0">
+                  <Minus size={14} className="text-white/50" />
+                </button>
+                <div className="flex-1 text-center font-mono text-sm">{formatTime(cycleBreak)}</div>
+                <button onClick={() => adjustValue(setCycleBreak, 1)} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0">
+                  <Plus size={14} className="text-white/50" />
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="text-center text-xs font-medium text-white/50 mt-2.5">
-            Total: {displayTotal}
-          </div>
         </div>
 
         {/* Circular Timer */}
-        <div className="flex-1 flex justify-center items-center min-h-0 my-4">
+        <div className="flex-1 flex flex-col justify-center items-center min-h-0 my-4">
+          {/* Total Time */}
+          <div className="text-center text-base font-bold text-white/90 tracking-wider mb-2">
+            Total: {displayTotal}
+          </div>
           <div className="relative w-full aspect-square max-w-xs">
             <svg viewBox="0 0 256 256" className="w-full h-full transform -rotate-90">
               <circle
@@ -263,6 +300,7 @@ export default function App() {
                 className="text-white/5"
               />
               <motion.circle
+                key={`${currentPhase}-${currentSet}-${currentCycle}`}
                 cx="128"
                 cy="128"
                 r="120"
@@ -273,7 +311,7 @@ export default function App() {
                 initial={{ strokeDashoffset: 0 }}
                 animate={{ strokeDashoffset: 2 * Math.PI * 120 * (1 - progress) }}
                 transition={{ duration: 0.5, ease: "linear" }}
-                className={currentPhase === 'WORK' ? 'text-[#39FF14]' : 'text-blue-400'}
+                className={currentPhase === 'WORK' ? 'text-[#39FF14]' : currentPhase === 'CYCLE_BREAK' ? 'text-amber-400' : currentPhase === 'READY' ? 'text-white/60' : 'text-blue-400'}
                 style={{ filter: 'drop-shadow(0 0 6px currentColor)' }}
               />
             </svg>
