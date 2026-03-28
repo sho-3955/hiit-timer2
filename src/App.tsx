@@ -97,73 +97,73 @@ export default function App() {
   const progress = maxTime > 0 ? (timeLeft / maxTime) : 0;
 
   return (
-    <div className="min-h-screen bg-[#121212] text-white font-sans flex flex-col items-center p-6 select-none">
-      <header className="w-full max-w-md text-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-white/90">HIIT Timer</h1>
+    <div className="h-dvh bg-[#121212] text-white font-sans flex flex-col items-center px-4 py-3 select-none overflow-hidden">
+      <header className="w-full max-w-md text-center mb-2">
+        <h1 className="text-2xl font-bold tracking-tight text-white/90">HIIT Timer</h1>
       </header>
 
-      <main className="w-full max-w-md space-y-8">
+      <main className="flex-1 w-full max-w-md flex flex-col gap-3">
         {/* Settings Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Work</label>
-            <div className="flex items-center bg-[#1a1a1a] border border-[#39FF14]/30 rounded-lg overflow-hidden h-12">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Work</label>
+            <div className="flex items-center bg-[#1a1a1a] border border-[#39FF14]/30 rounded-lg overflow-hidden h-10">
               <button onClick={() => adjustValue(setWorkTime, -5, 5)} className="px-3 h-full hover:bg-[#39FF14]/10 transition-colors">
-                <Minus size={16} className="text-[#39FF14]" />
+                <Minus size={14} className="text-[#39FF14]" />
               </button>
-              <div className="flex-1 text-center font-mono text-lg">{formatTime(workTime)}</div>
+              <div className="flex-1 text-center font-mono text-base">{formatTime(workTime)}</div>
               <button onClick={() => adjustValue(setWorkTime, 5)} className="px-3 h-full hover:bg-[#39FF14]/10 transition-colors">
-                <Plus size={16} className="text-[#39FF14]" />
+                <Plus size={14} className="text-[#39FF14]" />
               </button>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Rest</label>
-            <div className="flex items-center bg-[#1a1a1a] border border-[#39FF14]/30 rounded-lg overflow-hidden h-12">
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Rest</label>
+            <div className="flex items-center bg-[#1a1a1a] border border-[#39FF14]/30 rounded-lg overflow-hidden h-10">
               <button onClick={() => adjustValue(setRestTime, -5, 5)} className="px-3 h-full hover:bg-[#39FF14]/10 transition-colors">
-                <Minus size={16} className="text-[#39FF14]" />
+                <Minus size={14} className="text-[#39FF14]" />
               </button>
-              <div className="flex-1 text-center font-mono text-lg">{formatTime(restTime)}</div>
+              <div className="flex-1 text-center font-mono text-base">{formatTime(restTime)}</div>
               <button onClick={() => adjustValue(setRestTime, 5)} className="px-3 h-full hover:bg-[#39FF14]/10 transition-colors">
-                <Plus size={16} className="text-[#39FF14]" />
+                <Plus size={14} className="text-[#39FF14]" />
               </button>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Sets</label>
-            <div className="flex items-center bg-[#1a1a1a] border border-[#39FF14]/30 rounded-lg overflow-hidden h-12">
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Sets</label>
+            <div className="flex items-center bg-[#1a1a1a] border border-[#39FF14]/30 rounded-lg overflow-hidden h-10">
               <button onClick={() => adjustValue(setSets, -1)} className="px-3 h-full hover:bg-[#39FF14]/10 transition-colors">
-                <Minus size={16} className="text-[#39FF14]" />
+                <Minus size={14} className="text-[#39FF14]" />
               </button>
-              <div className="flex-1 text-center font-mono text-lg">{sets}</div>
+              <div className="flex-1 text-center font-mono text-base">{sets}</div>
               <button onClick={() => adjustValue(setSets, 1)} className="px-3 h-full hover:bg-[#39FF14]/10 transition-colors">
-                <Plus size={16} className="text-[#39FF14]" />
+                <Plus size={14} className="text-[#39FF14]" />
               </button>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Cycles</label>
-            <div className="flex items-center bg-[#1a1a1a] border border-[#39FF14]/30 rounded-lg overflow-hidden h-12">
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Cycles</label>
+            <div className="flex items-center bg-[#1a1a1a] border border-[#39FF14]/30 rounded-lg overflow-hidden h-10">
               <button onClick={() => adjustValue(setCycles, -1)} className="px-3 h-full hover:bg-[#39FF14]/10 transition-colors">
-                <Minus size={16} className="text-[#39FF14]" />
+                <Minus size={14} className="text-[#39FF14]" />
               </button>
-              <div className="flex-1 text-center font-mono text-lg">{cycles}</div>
+              <div className="flex-1 text-center font-mono text-base">{cycles}</div>
               <button onClick={() => adjustValue(setCycles, 1)} className="px-3 h-full hover:bg-[#39FF14]/10 transition-colors">
-                <Plus size={16} className="text-[#39FF14]" />
+                <Plus size={14} className="text-[#39FF14]" />
               </button>
             </div>
           </div>
         </div>
 
-        <div className="text-center text-sm font-medium text-white/60">
+        <div className="text-center text-xs font-medium text-white/60">
           Total: {displayTotal}
         </div>
 
         {/* Circular Timer */}
-        <div className="relative flex justify-center items-center py-8">
+        <div className="relative flex-1 flex justify-center items-center">
           <svg className="w-64 h-64 transform -rotate-90">
             <circle
               cx="128"
@@ -189,7 +189,7 @@ export default function App() {
               style={{ filter: 'drop-shadow(0 0 8px currentColor)' }}
             />
           </svg>
-          
+
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <AnimatePresence mode="wait">
               <motion.div
@@ -202,21 +202,21 @@ export default function App() {
                 {currentPhase}
               </motion.div>
             </AnimatePresence>
-            <div className="text-6xl font-bold font-mono tabular-nums">
+            <div className="text-5xl font-bold font-mono tabular-nums">
               {formatTime(timeLeft)}
             </div>
           </div>
         </div>
 
         {/* Progress Info */}
-        <div className="flex justify-center items-center space-x-4 text-xl font-bold uppercase tracking-wide">
+        <div className="flex justify-center items-center space-x-4 text-lg font-bold uppercase tracking-wide">
           <div className="flex items-center">
             <span className="text-white/40 mr-2">SET:</span>
             <span className="text-[#39FF14]">{currentSet}</span>
             <span className="text-white/20 mx-1">/</span>
             <span className="text-white/60">{sets}</span>
           </div>
-          <div className="w-px h-6 bg-white/10" />
+          <div className="w-px h-5 bg-white/10" />
           <div className="flex items-center">
             <span className="text-white/40 mr-2">CYCLE:</span>
             <span className="text-[#39FF14]">{currentCycle}</span>
@@ -226,40 +226,36 @@ export default function App() {
         </div>
 
         {/* Controls */}
-        <div className="flex space-x-4 pt-4">
+        <div className="flex space-x-4">
           <button
             onClick={toggleTimer}
-            className={`flex-1 flex items-center justify-center space-x-2 h-16 rounded-2xl font-bold text-lg transition-all active:scale-95 ${
-              isActive 
-                ? 'bg-white/10 text-white hover:bg-white/20' 
+            className={`flex-1 flex items-center justify-center space-x-2 h-12 rounded-2xl font-bold text-base transition-all active:scale-95 ${
+              isActive
+                ? 'bg-white/10 text-white hover:bg-white/20'
                 : 'bg-[#39FF14] text-black hover:bg-[#32e612] shadow-[0_0_20px_rgba(57,255,20,0.3)]'
             }`}
           >
             {isActive ? (
               <>
-                <Pause fill="currentColor" size={24} />
+                <Pause fill="currentColor" size={20} />
                 <span>PAUSE</span>
               </>
             ) : (
               <>
-                <Play fill="currentColor" size={24} />
+                <Play fill="currentColor" size={20} />
                 <span>START</span>
               </>
             )}
           </button>
-          
+
           <button
             onClick={resetTimer}
-            className="w-16 h-16 flex items-center justify-center bg-[#1a1a1a] text-white/60 rounded-2xl hover:bg-[#252525] hover:text-white transition-all active:scale-95"
+            className="w-12 h-12 flex items-center justify-center bg-[#1a1a1a] text-white/60 rounded-2xl hover:bg-[#252525] hover:text-white transition-all active:scale-95"
           >
-            <RotateCcw size={24} />
+            <RotateCcw size={20} />
           </button>
         </div>
       </main>
-
-      <footer className="mt-auto pt-8 text-white/20 text-[10px] uppercase tracking-widest font-mono">
-        Designed for Performance
-      </footer>
     </div>
   );
 }
