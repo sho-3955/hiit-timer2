@@ -81,21 +81,31 @@ export default function App() {
     if (!audioCtxRef.current) {
       audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     }
+    if (audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
   };
 
   const playBeep = useCallback((frequency: number, duration: number, count: number = 1) => {
     const ctx = audioCtxRef.current;
     if (!ctx) return;
-    for (let i = 0; i < count; i++) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = frequency;
-      gain.gain.value = 0.3;
-      const startTime = ctx.currentTime + i * (duration / 1000 + 0.1);
-      osc.start(startTime);
-      osc.stop(startTime + duration / 1000);
+    const schedule = () => {
+      for (let i = 0; i < count; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = frequency;
+        gain.gain.value = 0.3;
+        const startTime = ctx.currentTime + i * (duration / 1000 + 0.1);
+        osc.start(startTime);
+        osc.stop(startTime + duration / 1000);
+      }
+    };
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(schedule);
+    } else {
+      schedule();
     }
   }, []);
 
