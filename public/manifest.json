@@ -1,0 +1,25 @@
+{
+  "name": "HIIT Timer",
+  "short_name": "HIIT Timer",
+  "description": "HIITインターバルタイマー",
+  "start_url": "/hiit-timer2/",
+  "scope": "/hiit-timer2/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/hiit-timer2/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/hiit-timer2/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
