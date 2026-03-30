@@ -322,7 +322,16 @@ export default function App() {
             Total: {formatTime(totalRemaining)}
           </div>
           <div className="relative w-full aspect-square max-w-xs">
-            <svg viewBox="0 0 256 256" className="w-full h-full transform -rotate-90">
+            <svg viewBox="0 0 256 256" overflow="visible" className="w-full h-full transform -rotate-90">
+              <defs>
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
               <circle
                 cx="128"
                 cy="128"
@@ -345,7 +354,7 @@ export default function App() {
                 animate={{ strokeDashoffset: 2 * Math.PI * 120 * (1 - progress) }}
                 transition={{ duration: 0.5, ease: "linear" }}
                 className={currentPhase === 'WORK' ? 'text-[#39FF14]' : currentPhase === 'CYCLE_BREAK' ? 'text-amber-400' : currentPhase === 'READY' ? 'text-white/60' : 'text-blue-400'}
-                style={{ filter: 'drop-shadow(0 0 6px currentColor)' }}
+                filter="url(#glow)"
               />
             </svg>
 
