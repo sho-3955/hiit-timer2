@@ -72,7 +72,23 @@ export default function App() {
 
   // Total time calculation
   const totalSeconds = (workTime + restTime) * sets * cycles - (restTime * cycles) + cycleBreak * (cycles - 1);
-  const displayTotal = formatTime(Math.max(0, totalSeconds));
+
+  // Calculate total remaining time (counts down during workout)
+  const totalRemaining = (() => {
+    const fullCycleTime = sets * workTime + (sets - 1) * restTime;
+    if (currentPhase === 'READY') return totalSeconds;
+    if (currentPhase === 'COOLDOWN') return 0;
+    let remaining = timeLeft;
+    if (currentPhase === 'WORK') {
+      remaining += (sets - currentSet) * (restTime + workTime);
+    } else if (currentPhase === 'REST') {
+      remaining += workTime + (sets - currentSet) * (restTime + workTime);
+    } else if (currentPhase === 'CYCLE_BREAK') {
+      remaining += fullCycleTime;
+    }
+    remaining += (cycles - currentCycle) * (cycleBreak + fullCycleTime);
+    return remaining;
+  })();
 
   const isRunning = isActive || currentPhase !== 'READY';
 
@@ -180,6 +196,13 @@ export default function App() {
       if (timeLeft <= 3 && currentPhase !== 'COOLDOWN') {
         playBeep(600, 100);
       }
+      // 合計残り時間が10の倍数でビープ音（フェーズ開始時はスキップ）
+      const isPhaseStart = (currentPhase === 'WORK' && timeLeft === workTime)
+        || (currentPhase === 'REST' && timeLeft === restTime)
+        || (currentPhase === 'CYCLE_BREAK' && timeLeft === cycleBreak);
+      if (totalRemaining > 0 && totalRemaining % 10 === 0 && currentPhase !== 'READY' && !isPhaseStart) {
+        playBeep(500, 150);
+      }
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => prev - 1);
       }, 1000);
@@ -190,7 +213,7 @@ export default function App() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive, timeLeft, nextPhase, currentPhase, playBeep]);
+  }, [isActive, timeLeft, nextPhase, currentPhase, playBeep, totalRemaining]);
 
   const toggleTimer = () => {
     initAudio();
@@ -296,7 +319,7 @@ export default function App() {
         <div className="flex-1 flex flex-col justify-center items-center min-h-0 my-4">
           {/* Total Time */}
           <div className="text-center text-base font-bold text-white/90 tracking-wider mb-2">
-            Total: {displayTotal}
+            Total: {formatTime(totalRemaining)}
           </div>
           <div className="relative w-full aspect-square max-w-xs">
             <svg viewBox="0 0 256 256" className="w-full h-full transform -rotate-90">
