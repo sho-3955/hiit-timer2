@@ -250,11 +250,11 @@ export default function App() {
             <div className="col-span-3 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Work</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setWorkTime, -1, 1)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setWorkTime, -1, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{formatTime(workTime)}</div>
-                <button onClick={() => adjustValue(setWorkTime, 1)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setWorkTime, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
@@ -263,11 +263,11 @@ export default function App() {
             <div className="col-span-3 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Rest</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setRestTime, -1, 1)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setRestTime, -1, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{formatTime(restTime)}</div>
-                <button onClick={() => adjustValue(setRestTime, 1)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setRestTime, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
@@ -276,11 +276,11 @@ export default function App() {
             <div className="col-span-2 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Sets</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setSets, -1)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setSets, -1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{sets}</div>
-                <button onClick={() => adjustValue(setSets, 1)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setSets, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
@@ -289,11 +289,11 @@ export default function App() {
             <div className="col-span-2 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Cycles</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setCycles, -1)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setCycles, -1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{cycles}</div>
-                <button onClick={() => adjustValue(setCycles, 1)} className="px-3 h-full hover:bg-white/10 transition-colors">
+                <button onClick={() => adjustValue(setCycles, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
@@ -302,11 +302,11 @@ export default function App() {
             <div className="col-span-2 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">C.Break</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setCycleBreak, -1, 0)} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0">
+                <button onClick={() => adjustValue(setCycleBreak, -1, 0)} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-sm">{formatTime(cycleBreak)}</div>
-                <button onClick={() => adjustValue(setCycleBreak, 1)} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0">
+                <button onClick={() => adjustValue(setCycleBreak, 1)} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
@@ -408,7 +408,7 @@ export default function App() {
         <div className="flex space-x-3 mt-auto">
           <button
             onClick={toggleTimer}
-            className={`flex-1 flex items-center justify-center space-x-2 h-14 rounded-xl font-bold text-base transition-all active:scale-95 ${
+            className={`flex-1 flex items-center justify-center space-x-2 h-14 rounded-xl font-bold text-base transition-all active:scale-95 cursor-pointer ${
               isActive
                 ? 'bg-white/10 text-white hover:bg-white/20'
                 : 'bg-[#39FF14] text-black hover:bg-[#32e612] shadow-[0_0_20px_rgba(57,255,20,0.3)]'
@@ -429,7 +429,7 @@ export default function App() {
 
           <button
             onClick={resetTimer}
-            className="w-14 h-14 flex items-center justify-center bg-white/[0.04] text-white/60 rounded-xl hover:bg-white/10 hover:text-white transition-all active:scale-95"
+            className="w-14 h-14 flex items-center justify-center bg-white/[0.04] text-white/60 rounded-xl hover:bg-white/10 hover:text-white transition-all active:scale-95 cursor-pointer"
           >
             <RotateCcw size={20} />
           </button>
