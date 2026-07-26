@@ -196,11 +196,14 @@ export default function App() {
       if (timeLeft <= 3 && currentPhase !== 'COOLDOWN') {
         playBeep(600, 100);
       }
-      // 合計残り時間が10の倍数でビープ音（フェーズ開始時はスキップ）
+      // WORK中はフェーズ残り時間が10の倍数、REST/CYCLE_BREAK中は残り20秒・10秒のみビープ音（フェーズ開始時はスキップ）
       const isPhaseStart = (currentPhase === 'WORK' && timeLeft === workTime)
         || (currentPhase === 'REST' && timeLeft === restTime)
         || (currentPhase === 'CYCLE_BREAK' && timeLeft === cycleBreak);
-      if (totalRemaining > 0 && totalRemaining % 10 === 0 && currentPhase !== 'READY' && !isPhaseStart) {
+      const shouldIntervalBeep = currentPhase === 'WORK'
+        ? timeLeft % 10 === 0
+        : (currentPhase === 'REST' || currentPhase === 'CYCLE_BREAK') && (timeLeft === 20 || timeLeft === 10);
+      if (shouldIntervalBeep && !isPhaseStart) {
         playBeep(500, 150);
       }
       timerRef.current = setInterval(() => {
@@ -213,7 +216,7 @@ export default function App() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive, timeLeft, nextPhase, currentPhase, playBeep, totalRemaining]);
+  }, [isActive, timeLeft, nextPhase, currentPhase, playBeep, workTime, restTime, cycleBreak]);
 
   const toggleTimer = () => {
     initAudio();
