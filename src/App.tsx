@@ -38,6 +38,34 @@ const loadSettings = (): Settings => {
 
 const READY_COUNTDOWN = 5;
 
+// 1秒の無音WAVをBlob URLとして生成する。
+// iOSでは再生中の<audio>要素があるとaudio sessionがメディア再生扱いになり、
+// サイレントスイッチON（マナーモード）でもWeb Audioのビープが鳴るようになる。
+const createSilentWavUrl = () => {
+  const sampleRate = 8000;
+  const numSamples = sampleRate; // 1秒
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+  const writeStr = (offset: number, s: string) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i));
+  };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true); // fmtチャンクサイズ
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // モノラル
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); // バイトレート
+  view.setUint16(32, 2, true); // ブロックアライン
+  view.setUint16(34, 16, true); // ビット深度
+  writeStr(36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+  // データ部はゼロのまま = 無音
+  return URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }));
+};
+
 export default function App() {
   const initial = loadSettings();
 
@@ -57,17 +85,28 @@ export default function App() {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const silentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const silentLoopWantedRef = useRef(false);
+  const activeBeepNodesRef = useRef<{ osc: OscillatorNode; gain: GainNode }[]>([]);
+  // 音声セッションの世代。開始/解放のたびに進め、旧世代の非同期完了処理
+  // （resume/suspend/ビープ予約）が現行セッションの状態を書き換えないようにする
+  const audioGenRef = useRef(0);
+  // AudioContextのresume/suspendを直列化するキュー
+  const audioOpChainRef = useRef<Promise<void>>(Promise.resolve());
 
   // Save settings to LocalStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ workTime, restTime, sets, cycles, cycleBreak }));
   }, [workTime, restTime, sets, cycles, cycleBreak]);
 
-  // Format time MM:SS
+  // Format time MM:SS（0.5秒の端数がある場合は MM:SS.5）
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const secsStr = Number.isInteger(secs)
+      ? secs.toString().padStart(2, '0')
+      : secs.toFixed(1).padStart(4, '0');
+    return `${mins.toString().padStart(2, '0')}:${secsStr}`;
   };
 
   // Total time calculation
@@ -92,15 +131,102 @@ export default function App() {
 
   const isRunning = isActive || currentPhase !== 'READY';
 
+  // AudioContextのresume/suspendを直列化する単一経路。キューの実行時に毎回
+  // desired状態（silentLoopWantedRef）を再評価してそちらへ収束させるため、
+  // 完了前の公開stateの読み違いや、旧い操作による新セッションの巻き戻しが起きない。
+  // statechangeからの再帰的な再試行はせず、ティック・復帰イベント等の外部契機からのみ呼ぶ
+  const reconcileAudioState = useCallback(() => {
+    audioOpChainRef.current = audioOpChainRef.current.then(() => {
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+      const state = ctx.state as string;
+      if (state === 'closed') return;
+      if (silentLoopWantedRef.current) {
+        if (state !== 'running') return ctx.resume().catch(() => {});
+      } else {
+        if (state !== 'suspended') return ctx.suspend().catch(() => {});
+      }
+    }).catch(() => {});
+  }, []);
+
   // Audio notification
   const initAudio = () => {
+    // iOS: audio sessionをメディア再生カテゴリへ（サイレントスイッチONでも音が鳴る）
+    const nav = navigator as Navigator & { audioSession?: { type: string } };
+    if (nav.audioSession) {
+      try {
+        nav.audioSession.type = 'playback';
+      } catch {}
+    }
     if (!audioCtxRef.current) {
       audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     }
-    if (audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume();
-    }
   };
+
+  // 無音ループの開始/停止。iOSではこれが再生中の間メディア再生扱いが維持され、
+  // マナーモードでもビープが聞こえる（AudioSession API非対応環境向けの保険も兼ねる）
+  const startSilentLoop = useCallback(() => {
+    audioGenRef.current += 1;
+    silentLoopWantedRef.current = true;
+    if (!silentAudioRef.current) {
+      const el = new Audio(createSilentWavUrl());
+      el.loop = true;
+      // 通知等の割り込みでOSに止められた場合、タイマー動作中なら再開を試みる
+      el.onpause = () => {
+        if (silentLoopWantedRef.current) {
+          el.play().catch(() => {});
+        }
+      };
+      silentAudioRef.current = el;
+    }
+    silentAudioRef.current.play().catch(() => {});
+    reconcileAudioState();
+  }, [reconcileAudioState]);
+
+  // 音声セッションの解放。一時停止・リセット・完了後に playback セッションを
+  // 保持し続けないよう、無音ループ停止 + AudioContext suspend + audio session 復元を行う
+  const releaseAudio = useCallback(() => {
+    audioGenRef.current += 1;
+    silentLoopWantedRef.current = false;
+    silentAudioRef.current?.pause();
+    // 予約済み・再生途中のビープをonendedを待たずに即座に破棄する
+    // （suspend後の再開時に古いビープが鳴る・ノードが残留するのを防ぐ）
+    activeBeepNodesRef.current.forEach(({ osc, gain }) => {
+      osc.onended = null;
+      try {
+        osc.stop();
+      } catch {}
+      osc.disconnect();
+      gain.disconnect();
+    });
+    activeBeepNodesRef.current = [];
+    const nav = navigator as Navigator & { audioSession?: { type: string } };
+    if (nav.audioSession) {
+      try {
+        nav.audioSession.type = 'auto';
+      } catch {}
+    }
+    // 直列化キュー経由でsuspendedへ収束させる
+    reconcileAudioState();
+  }, [reconcileAudioState]);
+
+  // アンマウント時に音声リソースを完全解放する（audio sessionの復元含む）
+  useEffect(() => {
+    return () => {
+      releaseAudio();
+      const el = silentAudioRef.current;
+      if (el) {
+        el.onpause = null;
+        URL.revokeObjectURL(el.src);
+        silentAudioRef.current = null;
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx) {
+        ctx.close().catch(() => {});
+        audioCtxRef.current = null;
+      }
+    };
+  }, [releaseAudio]);
 
   const playBeep = useCallback((frequency: number, duration: number, count: number = 1) => {
     const ctx = audioCtxRef.current;
@@ -116,14 +242,31 @@ export default function App() {
         const startTime = ctx.currentTime + i * (duration / 1000 + 0.1);
         osc.start(startTime);
         osc.stop(startTime + duration / 1000);
+        // 解放時に予約済みビープを破棄できるよう組で追跡する
+        const entry = { osc, gain };
+        activeBeepNodesRef.current.push(entry);
+        osc.onended = () => {
+          activeBeepNodesRef.current = activeBeepNodesRef.current.filter(e => e !== entry);
+          osc.disconnect();
+          gain.disconnect();
+        };
       }
     };
-    if (ctx.state === 'suspended') {
-      ctx.resume().then(schedule);
-    } else {
+    if ((ctx.state as string) === 'running') {
       schedule();
+    } else {
+      // 直列化キューでresumeを確定させてからscheduleする。
+      // 世代が進んでいたら旧セッションのビープとして破棄（遅延再生しない）
+      const gen = audioGenRef.current;
+      reconcileAudioState();
+      audioOpChainRef.current = audioOpChainRef.current.then(() => {
+        if (audioGenRef.current !== gen) return;
+        if (silentLoopWantedRef.current && (ctx.state as string) === 'running') {
+          schedule();
+        }
+      }).catch(() => {});
     }
-  }, []);
+  }, [reconcileAudioState]);
 
   const vibrate = useCallback((pattern: number | number[]) => {
     if ('vibrate' in navigator) {
@@ -153,8 +296,9 @@ export default function App() {
     setTimeLeft(READY_COUNTDOWN);
     setCurrentSet(1);
     setCurrentCycle(1);
-    if (timerRef.current) clearInterval(timerRef.current);
-  }, []);
+    releaseAudio();
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, [releaseAudio]);
 
   const nextPhase = useCallback(() => {
     if (currentPhase === 'READY' || currentPhase === 'REST' || currentPhase === 'CYCLE_BREAK') {
@@ -192,8 +336,13 @@ export default function App() {
 
   useEffect(() => {
     if (isActive && timeLeft > 0) {
-      // カウントダウン 3, 2, 1 でビープ音
-      if (timeLeft <= 3 && currentPhase !== 'COOLDOWN') {
+      // 割り込み（通知・Siri等）後の自動復帰ハートビート: 毎ティック音声の復帰を試みる
+      reconcileAudioState();
+      if (silentLoopWantedRef.current && silentAudioRef.current?.paused) {
+        silentAudioRef.current.play().catch(() => {});
+      }
+      // カウントダウン 3, 2, 1 でビープ音（0.5秒の端数では鳴らさない）
+      if (timeLeft <= 3 && Number.isInteger(timeLeft) && currentPhase !== 'COOLDOWN') {
         playBeep(600, 100);
       }
       // WORK中はフェーズ残り時間が10の倍数、REST/CYCLE_BREAK中は残り20秒・10秒のみビープ音（フェーズ開始時はスキップ）
@@ -206,24 +355,70 @@ export default function App() {
       if (shouldIntervalBeep && !isPhaseStart) {
         playBeep(500, 150);
       }
-      timerRef.current = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
+      // 0.5秒の端数がある間は500msティック、それ以外は1秒ティック
+      const hasHalfStep = !Number.isInteger(timeLeft);
+      timerRef.current = setTimeout(() => {
+        setTimeLeft(prev => prev - (hasHalfStep ? 0.5 : 1));
+      }, hasHalfStep ? 500 : 1000);
     } else if (isActive && timeLeft === 0) {
       nextPhase();
     }
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isActive, timeLeft, nextPhase, currentPhase, playBeep, workTime, restTime, cycleBreak]);
+  }, [isActive, timeLeft, nextPhase, currentPhase, playBeep, workTime, restTime, cycleBreak, reconcileAudioState]);
+
+  // アプリ復帰時に音声を再開（通知・アプリ切替・画面ロック後の復帰対策。タイマー動作中のみ）
+  useEffect(() => {
+    const resumeAudio = () => {
+      if (document.hidden) return;
+      if (!silentLoopWantedRef.current) return;
+      reconcileAudioState();
+      silentAudioRef.current?.play().catch(() => {});
+    };
+    document.addEventListener('visibilitychange', resumeAudio);
+    window.addEventListener('focus', resumeAudio);
+    window.addEventListener('pageshow', resumeAudio);
+    return () => {
+      document.removeEventListener('visibilitychange', resumeAudio);
+      window.removeEventListener('focus', resumeAudio);
+      window.removeEventListener('pageshow', resumeAudio);
+    };
+  }, [reconcileAudioState]);
+
+  // 完了後は完了ビープを鳴らし切ってから音声セッションを解放する
+  useEffect(() => {
+    if (currentPhase !== 'COOLDOWN') return;
+    const t = setTimeout(releaseAudio, 3000);
+    return () => clearTimeout(t);
+  }, [currentPhase, releaseAudio]);
 
   const toggleTimer = () => {
-    initAudio();
-    if (currentPhase === 'READY' && !isActive) {
+    // 完了後のSTARTは新しいワークアウトとして最初からやり直す
+    if (currentPhase === 'COOLDOWN') {
+      initAudio();
+      startSilentLoop();
+      setCurrentPhase('READY');
+      setCurrentSet(1);
+      setCurrentCycle(1);
       setTimeLeft(READY_COUNTDOWN);
       setIsActive(true);
       return;
+    }
+    if (currentPhase === 'READY' && !isActive) {
+      initAudio();
+      startSilentLoop();
+      setTimeLeft(READY_COUNTDOWN);
+      setIsActive(true);
+      return;
+    }
+    // 一時停止時は音声セッションを解放して他アプリの音声を妨げない。再開時に再取得する
+    if (isActive) {
+      releaseAudio();
+    } else {
+      initAudio();
+      startSilentLoop();
     }
     setIsActive(!isActive);
   };
@@ -266,11 +461,11 @@ export default function App() {
             <div className="col-span-3 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Rest</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setRestTime, -1, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
+                <button onClick={() => adjustValue(setRestTime, -0.5, 0.5)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{formatTime(restTime)}</div>
-                <button onClick={() => adjustValue(setRestTime, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
+                <button onClick={() => adjustValue(setRestTime, 0.5)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
