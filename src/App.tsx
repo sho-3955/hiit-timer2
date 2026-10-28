@@ -19,21 +19,46 @@ interface Settings {
   cycleBreak: number;
 }
 
+const DEFAULT_SETTINGS: Settings = { workTime: 20, restTime: 10, sets: 8, cycles: 1, cycleBreak: 120 };
+
+// 保存値ごとの許容範囲と刻み。localStorage は同一オリジン（<user>.github.io の他ページ）からも
+// 書き換えられるため、範囲外・刻み外・数値以外の値は既定値に戻す（0.3秒などはタイマーが0に到達せず止まる）
+const SETTING_RULES: Record<keyof Settings, { min: number; max: number; step: number }> = {
+  workTime: { min: 1, max: 3600, step: 1 },
+  restTime: { min: 0.5, max: 3600, step: 0.5 },
+  sets: { min: 1, max: 100, step: 1 },
+  cycles: { min: 1, max: 100, step: 1 },
+  cycleBreak: { min: 0, max: 3600, step: 1 },
+};
+
+const sanitizeSetting = (key: keyof Settings, value: unknown): number => {
+  const { min, max, step } = SETTING_RULES[key];
+  const valid = typeof value === 'number'
+    && Number.isFinite(value)
+    && value >= min
+    && value <= max
+    && Number.isInteger(value / step);
+  return valid ? value : DEFAULT_SETTINGS[key];
+};
+
 const loadSettings = (): Settings => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        workTime: parsed.workTime ?? 20,
-        restTime: parsed.restTime ?? 10,
-        sets: parsed.sets ?? 8,
-        cycles: parsed.cycles ?? 1,
-        cycleBreak: parsed.cycleBreak ?? 120,
-      };
+      const parsed: unknown = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') {
+        const p = parsed as Record<string, unknown>;
+        return {
+          workTime: sanitizeSetting('workTime', p.workTime),
+          restTime: sanitizeSetting('restTime', p.restTime),
+          sets: sanitizeSetting('sets', p.sets),
+          cycles: sanitizeSetting('cycles', p.cycles),
+          cycleBreak: sanitizeSetting('cycleBreak', p.cycleBreak),
+        };
+      }
     }
   } catch {}
-  return { workTime: 20, restTime: 10, sets: 8, cycles: 1, cycleBreak: 120 };
+  return DEFAULT_SETTINGS;
 };
 
 const READY_COUNTDOWN = 5;
@@ -423,8 +448,9 @@ export default function App() {
     setIsActive(!isActive);
   };
 
-  const adjustValue = (setter: Dispatch<SetStateAction<number>>, val: number, min: number = 1) => {
-    setter(prev => Math.max(min, prev + val));
+  const adjustValue = (setter: Dispatch<SetStateAction<number>>, val: number, key: keyof Settings) => {
+    const { min, max } = SETTING_RULES[key];
+    setter(prev => Math.min(max, Math.max(min, prev + val)));
   };
 
   // Progress percentage for circular bar
@@ -448,11 +474,11 @@ export default function App() {
             <div className="col-span-3 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Work</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setWorkTime, -1, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
+                <button onClick={() => adjustValue(setWorkTime, -1, 'workTime')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{formatTime(workTime)}</div>
-                <button onClick={() => adjustValue(setWorkTime, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
+                <button onClick={() => adjustValue(setWorkTime, 1, 'workTime')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
@@ -461,11 +487,11 @@ export default function App() {
             <div className="col-span-3 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Rest</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setRestTime, -0.5, 0.5)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
+                <button onClick={() => adjustValue(setRestTime, -0.5, 'restTime')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{formatTime(restTime)}</div>
-                <button onClick={() => adjustValue(setRestTime, 0.5)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
+                <button onClick={() => adjustValue(setRestTime, 0.5, 'restTime')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
@@ -474,11 +500,11 @@ export default function App() {
             <div className="col-span-2 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Sets</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setSets, -1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
+                <button onClick={() => adjustValue(setSets, -1, 'sets')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{sets}</div>
-                <button onClick={() => adjustValue(setSets, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
+                <button onClick={() => adjustValue(setSets, 1, 'sets')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
@@ -487,11 +513,11 @@ export default function App() {
             <div className="col-span-2 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Cycles</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setCycles, -1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
+                <button onClick={() => adjustValue(setCycles, -1, 'cycles')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-base">{cycles}</div>
-                <button onClick={() => adjustValue(setCycles, 1)} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
+                <button onClick={() => adjustValue(setCycles, 1, 'cycles')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>
@@ -500,11 +526,11 @@ export default function App() {
             <div className="col-span-2 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">C.Break</label>
               <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden h-11">
-                <button onClick={() => adjustValue(setCycleBreak, -1, 0)} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer">
+                <button onClick={() => adjustValue(setCycleBreak, -1, 'cycleBreak')} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
                 <div className="flex-1 text-center font-mono text-sm">{formatTime(cycleBreak)}</div>
-                <button onClick={() => adjustValue(setCycleBreak, 1)} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer">
+                <button onClick={() => adjustValue(setCycleBreak, 1, 'cycleBreak')} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
               </div>

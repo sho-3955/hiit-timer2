@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm install        # 依存関係のインストール
-npm run dev        # 開発サーバー起動 (http://localhost:3000)
+npm run dev        # 開発サーバー起動 (http://localhost:3000/hiit-timer2/、待ち受け先は DEV_HOST で変更)
 npm run build      # プロダクションビルド
 npm run lint       # TypeScript型チェック (tsc --noEmit)
 npm run clean      # dist ディレクトリの削除
@@ -49,6 +49,9 @@ Tailwind CSS 4 をViteプラグイン経由で使用（`tailwind.config.js` は�
 
 ## 注意点
 
-- 設定値は `localStorage` の `hiit-timer-settings` に保存される
+- 設定値は `localStorage` の `hiit-timer-settings` に保存される。読み込み時に `SETTING_RULES` の範囲・刻みで検証し、外れた値は既定値に戻す（同じ github.io オリジンの他ページからも書き換えられるため）
+- 開発サーバーは既定で localhost のみ待ち受ける。別端末から見るときは `.env.local` に `DEV_HOST=<Tailscale の IP>` を書く（`.env.example` 参照）。`0.0.0.0` は LAN 全体に公開されるので使わない
+- 本番ビルドの `index.html` には `vite.config.ts` の `cspPlugin` が CSP の meta タグを挿入する。外部リソースやインラインスクリプトを足すときは CSP も更新する
+- デプロイ用ワークフローはビルドとデプロイのジョブを分け、Pages の書き込み権限はデプロイ側だけに付けている。アクションはコミット SHA で固定し、Dependabot が更新する
 - GitHub Pages 配信用に `vite.config.ts` の `base` は `/hiit-timer2/` 固定
 - PWA 用の `manifest.json` と `icon.svg` は `public/` 配下にある
