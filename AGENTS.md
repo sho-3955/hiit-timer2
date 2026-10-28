@@ -53,5 +53,6 @@ Tailwind CSS 4 をViteプラグイン経由で使用（`tailwind.config.js` は�
 - 開発サーバーは既定で localhost のみ待ち受ける。別端末から見るときは `.env.local` に `DEV_HOST=<Tailscale の IP>` を書く（`.env.example` 参照）。`0.0.0.0` は LAN 全体に公開されるので使わない
 - 本番ビルドの `index.html` には `vite.config.ts` の `cspPlugin` が CSP の meta タグを挿入する。外部リソースやインラインスクリプトを足すときは CSP も更新する
 - デプロイ用ワークフローはビルドとデプロイのジョブを分け、Pages の書き込み権限はデプロイ側だけに付けている。アクションはコミット SHA で固定し、Dependabot が更新する
+- main 向けの PR では `.github/workflows/ci.yml` が型チェックとビルドを実行する。Dependabot はマイナー・パッチ更新を1つの PR にまとめ、メジャー更新は依存ごとに別の PR にする
 - GitHub Pages 配信用に `vite.config.ts` の `base` は `/hiit-timer2/` 固定
 - PWA 用の `manifest.json` と `icon.svg` は `public/` 配下にある

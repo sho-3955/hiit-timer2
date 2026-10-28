@@ -1,17 +1,19 @@
 version: 2
 updates:
+  # マイナー・パッチ更新は1つの PR にまとめる。
+  # メジャー更新は破壊的変更を含みうるため、グループに入れず依存ごとに個別の PR にする
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
     groups:
-      npm-dependencies:
-        patterns: ["*"]
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     groups:
-      github-actions:
-        patterns: ["*"]
+      github-actions-minor-patch:
+        update-types: ["minor", "patch"]
