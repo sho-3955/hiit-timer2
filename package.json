@@ -18,7 +18,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "vite": "^6.4.5",
-    "motion": "^12.23.24"
+    "motion": "^14.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
