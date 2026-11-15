@@ -41,7 +41,14 @@ const sanitizeSetting = (key: keyof Settings, value: unknown): number => {
   return valid ? value : DEFAULT_SETTINGS[key];
 };
 
-const loadSettings = (): Settings => {
+// 開始前の5秒カウントダウン（READY）を入れるかどうか。真偽値以外が保存されていたら既定（入れる）に戻す
+const DEFAULT_READY_COUNTDOWN = true;
+
+interface StoredSettings extends Settings {
+  readyCountdown: boolean;
+}
+
+const loadSettings = (): StoredSettings => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -54,11 +61,12 @@ const loadSettings = (): Settings => {
           sets: sanitizeSetting('sets', p.sets),
           cycles: sanitizeSetting('cycles', p.cycles),
           cycleBreak: sanitizeSetting('cycleBreak', p.cycleBreak),
+          readyCountdown: typeof p.readyCountdown === 'boolean' ? p.readyCountdown : DEFAULT_READY_COUNTDOWN,
         };
       }
     }
   } catch {}
-  return DEFAULT_SETTINGS;
+  return { ...DEFAULT_SETTINGS, readyCountdown: DEFAULT_READY_COUNTDOWN };
 };
 
 const READY_COUNTDOWN = 5;
@@ -100,6 +108,7 @@ export default function App() {
   const [sets, setSets] = useState(initial.sets);
   const [cycles, setCycles] = useState(initial.cycles);
   const [cycleBreak, setCycleBreak] = useState(initial.cycleBreak);
+  const [readyCountdown, setReadyCountdown] = useState(initial.readyCountdown);
 
   // Timer State
   const [isActive, setIsActive] = useState(false);
@@ -121,8 +130,8 @@ export default function App() {
 
   // Save settings to LocalStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ workTime, restTime, sets, cycles, cycleBreak }));
-  }, [workTime, restTime, sets, cycles, cycleBreak]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ workTime, restTime, sets, cycles, cycleBreak, readyCountdown }));
+  }, [workTime, restTime, sets, cycles, cycleBreak, readyCountdown]);
 
   // Format time MM:SS（0.5秒の端数がある場合は MM:SS.5）
   const formatTime = (seconds: number) => {
@@ -208,14 +217,8 @@ export default function App() {
     reconcileAudioState();
   }, [reconcileAudioState]);
 
-  // 音声セッションの解放。一時停止・リセット・完了後に playback セッションを
-  // 保持し続けないよう、無音ループ停止 + AudioContext suspend + audio session 復元を行う
-  const releaseAudio = useCallback(() => {
-    audioGenRef.current += 1;
-    silentLoopWantedRef.current = false;
-    silentAudioRef.current?.pause();
-    // 予約済み・再生途中のビープをonendedを待たずに即座に破棄する
-    // （suspend後の再開時に古いビープが鳴る・ノードが残留するのを防ぐ）
+  // 予約済み・再生途中のビープをonendedを待たずに即座に破棄する
+  const cancelBeeps = useCallback(() => {
     activeBeepNodesRef.current.forEach(({ osc, gain }) => {
       osc.onended = null;
       try {
@@ -225,6 +228,16 @@ export default function App() {
       gain.disconnect();
     });
     activeBeepNodesRef.current = [];
+  }, []);
+
+  // 音声セッションの解放。一時停止・リセット・完了後に playback セッションを
+  // 保持し続けないよう、無音ループ停止 + AudioContext suspend + audio session 復元を行う
+  const releaseAudio = useCallback(() => {
+    audioGenRef.current += 1;
+    silentLoopWantedRef.current = false;
+    silentAudioRef.current?.pause();
+    // suspend後の再開時に古いビープが鳴る・ノードが残留するのを防ぐ
+    cancelBeeps();
     const nav = navigator as Navigator & { audioSession?: { type: string } };
     if (nav.audioSession) {
       try {
@@ -233,7 +246,7 @@ export default function App() {
     }
     // 直列化キュー経由でsuspendedへ収束させる
     reconcileAudioState();
-  }, [reconcileAudioState]);
+  }, [reconcileAudioState, cancelBeeps]);
 
   // アンマウント時に音声リソースを完全解放する（audio sessionの復元含む）
   useEffect(() => {
@@ -421,20 +434,22 @@ export default function App() {
 
   const toggleTimer = () => {
     // 完了後のSTARTは新しいワークアウトとして最初からやり直す
-    if (currentPhase === 'COOLDOWN') {
+    if (currentPhase === 'COOLDOWN' || (currentPhase === 'READY' && !isActive)) {
+      // 完了直後の再スタートで、前回の完了ビープが新しいワークアウトに重ならないようにする
+      cancelBeeps();
       initAudio();
       startSilentLoop();
-      setCurrentPhase('READY');
       setCurrentSet(1);
       setCurrentCycle(1);
-      setTimeLeft(READY_COUNTDOWN);
-      setIsActive(true);
-      return;
-    }
-    if (currentPhase === 'READY' && !isActive) {
-      initAudio();
-      startSilentLoop();
-      setTimeLeft(READY_COUNTDOWN);
+      if (readyCountdown) {
+        setCurrentPhase('READY');
+        setTimeLeft(READY_COUNTDOWN);
+      } else {
+        // 5秒カウントダウンなし: 最初のWORKから直接始める
+        setCurrentPhase('WORK');
+        setTimeLeft(workTime);
+        notify('WORK');
+      }
       setIsActive(true);
       return;
     }
@@ -460,6 +475,9 @@ export default function App() {
     : (currentPhase === 'READY' && isActive) ? READY_COUNTDOWN
     : 0;
   const progress = maxTime > 0 ? (timeLeft / maxTime) : 1;
+  // 待機中の表示。5秒カウントダウンなしのときは、STARTで始まるWORKの時間を見せる
+  const isIdle = currentPhase === 'READY' && !isActive;
+  const displayTime = isIdle && !readyCountdown ? workTime : timeLeft;
 
   return (
     <div className="h-dvh bg-[#121212] text-white font-sans flex flex-col items-center px-5 pb-6 select-none overflow-hidden" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
@@ -537,6 +555,19 @@ export default function App() {
             </div>
           </div>
 
+          <div className="flex items-center justify-between mt-3.5">
+            <span id="ready-countdown-label" className="text-[11px] font-medium text-white/40 uppercase tracking-widest">5s Countdown</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={readyCountdown}
+              aria-labelledby="ready-countdown-label"
+              onClick={() => setReadyCountdown(prev => !prev)}
+              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${readyCountdown ? 'bg-[#39FF14]' : 'bg-white/10'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform ${readyCountdown ? 'translate-x-5 bg-black' : 'bg-white/60'}`} />
+            </button>
+          </div>
         </div>
 
         {/* Circular Timer */}
@@ -595,7 +626,7 @@ export default function App() {
                 </motion.div>
               </AnimatePresence>
               <div className="text-5xl font-bold font-mono tabular-nums">
-                {formatTime(timeLeft)}
+                {formatTime(displayTime)}
               </div>
               {currentPhase === 'COOLDOWN' && (
                 <motion.div
