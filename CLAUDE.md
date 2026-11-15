@@ -29,6 +29,7 @@ READY → WORK → REST → ... → CYCLE_BREAK → WORK → ... → COOLDOWN
 ### 状態の分離
 
 - **設定**: `workTime`, `restTime`, `sets`, `cycles`, `cycleBreak` — タイマー起動前に変更可能
+  - `readyCountdown`（真偽値、既定 `true`）— OFF にすると開始前の5秒カウントダウン（READY）を省き、START で直接 WORK から始まる
 - **ランタイム**: `isActive`, `timeLeft`, `currentPhase` — タイマー動作中の状態
 - **進捗**: `currentSet`, `currentCycle` — 現在の進行状況
 
