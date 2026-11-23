@@ -30,6 +30,8 @@ READY → WORK → REST → ... → CYCLE_BREAK → WORK → ... → COOLDOWN
 
 - **設定**: `workTime`, `restTime`, `sets`, `cycles`, `cycleBreak` — タイマー起動前に変更可能
   - `readyCountdown`（真偽値、既定 `true`）— OFF にすると開始前の5秒カウントダウン（READY）を省き、START で直接 WORK から始まる
+  - 数字部分（`EditableValue`）はクリックでキーボード入力に切り替わる。Enter / フォーカスを外すと確定、Esc で取り消し。`parseSettingInput` が `SETTING_RULES` の刻みに丸めて範囲に収める
+  - 動作中・一時停止中は設定パネルに `inert` を付け、キーボード操作も含めて変更できないようにしている
 - **ランタイム**: `isActive`, `timeLeft`, `currentPhase` — タイマー動作中の状態
 - **進捗**: `currentSet`, `currentCycle` — 現在の進行状況
 

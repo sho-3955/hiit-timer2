@@ -71,6 +71,106 @@ const loadSettings = (): StoredSettings => {
 
 const READY_COUNTDOWN = 5;
 
+// MM:SS 表記（0.5秒の端数がある場合は MM:SS.5）
+const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  const secsStr = Number.isInteger(secs)
+    ? secs.toString().padStart(2, '0')
+    : secs.toFixed(1).padStart(4, '0');
+  return `${mins.toString().padStart(2, '0')}:${secsStr}`;
+};
+
+// キーボード入力された文字列を設定値に変換する。時間は「1:30」でも秒数の「90」でも受け付ける。
+// 全角の数字・コロンは半角に直し、SETTING_RULES の刻みに丸めて範囲内に収める。読み取れなければ null
+const parseSettingInput = (key: keyof Settings, text: string, isTime: boolean): number | null => {
+  const t = text.normalize('NFKC').trim();
+  let value: number;
+  const timeMatch = isTime ? /^(\d+):(\d+(?:\.\d+)?)$/.exec(t) : null;
+  if (timeMatch) {
+    value = Number(timeMatch[1]) * 60 + Number(timeMatch[2]);
+  } else if (/^\d+(?:\.\d+)?$/.test(t)) {
+    value = Number(t);
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(value)) return null;
+  const { min, max, step } = SETTING_RULES[key];
+  return Math.min(max, Math.max(min, Math.round(value / step) * step));
+};
+
+// 設定の数字部分。クリックすると入力欄に変わり、Enter かフォーカスを外すと確定、Esc で取り消す
+function EditableValue({ settingKey, value, isTime, label, onCommit, className }: {
+  settingKey: keyof Settings;
+  value: number;
+  isTime: boolean;
+  label: string;
+  onCommit: (value: number) => void;
+  className: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const cancelledRef = useRef(false);
+  // Enter / Esc で編集を終えたときだけ、表示に戻ったボタンへフォーカスを戻す
+  // （Tab やクリックで外れたときは、移動先のフォーカスを奪わない）
+  const restoreFocusRef = useRef(false);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const shown = isTime ? formatTime(value) : String(value);
+
+  useEffect(() => {
+    if (draft === null && restoreFocusRef.current) {
+      restoreFocusRef.current = false;
+      buttonRef.current?.focus();
+    }
+  }, [draft]);
+
+  if (draft === null) {
+    return (
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label={`${label}: ${shown}`}
+        onClick={() => { cancelledRef.current = false; setDraft(shown); }}
+        className={`flex-1 min-w-0 h-full text-center font-mono cursor-text hover:bg-white/5 transition-colors ${className}`}
+      >
+        {shown}
+      </button>
+    );
+  }
+
+  const finish = () => {
+    if (!cancelledRef.current) {
+      const parsed = parseSettingInput(settingKey, draft, isTime);
+      if (parsed !== null) onCommit(parsed);
+    }
+    setDraft(null);
+  };
+
+  return (
+    <input
+      autoFocus
+      type="text"
+      // iOS は16px未満の入力欄にフォーカスすると画面を拡大するため、文字サイズは text-base 固定
+      inputMode={SETTING_RULES[settingKey].step < 1 ? 'decimal' : 'numeric'}
+      aria-label={label}
+      value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onFocus={e => e.target.select()}
+      onBlur={finish}
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          restoreFocusRef.current = true;
+          e.currentTarget.blur();
+        } else if (e.key === 'Escape') {
+          cancelledRef.current = true;
+          restoreFocusRef.current = true;
+          e.currentTarget.blur();
+        }
+      }}
+      className="flex-1 min-w-0 w-0 h-full bg-white/10 text-center font-mono text-base outline-none select-text"
+    />
+  );
+}
+
 // 1秒の無音WAVをBlob URLとして生成する。
 // iOSでは再生中の<audio>要素があるとaudio sessionがメディア再生扱いになり、
 // サイレントスイッチON（マナーモード）でもWeb Audioのビープが鳴るようになる。
@@ -132,16 +232,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ workTime, restTime, sets, cycles, cycleBreak, readyCountdown }));
   }, [workTime, restTime, sets, cycles, cycleBreak, readyCountdown]);
-
-  // Format time MM:SS（0.5秒の端数がある場合は MM:SS.5）
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    const secsStr = Number.isInteger(secs)
-      ? secs.toString().padStart(2, '0')
-      : secs.toFixed(1).padStart(4, '0');
-    return `${mins.toString().padStart(2, '0')}:${secsStr}`;
-  };
 
   // Total time calculation
   const totalSeconds = (workTime + restTime) * sets * cycles - (restTime * cycles) + cycleBreak * (cycles - 1);
@@ -487,7 +577,8 @@ export default function App() {
 
       <main className="flex-1 w-full max-w-md flex flex-col min-h-0">
         {/* Settings Panel */}
-        <div className={`bg-white/[0.02] rounded-2xl p-3.5 pb-3 transition-opacity ${isRunning ? 'opacity-50 pointer-events-none' : ''}`}>
+        {/* 動作中は inert でキーボード操作（Tab → Enter）も含めて設定変更を止める。pointer-events-none だけではフォーカスを防げない */}
+        <div inert={isRunning} className={`bg-white/[0.02] rounded-2xl p-3.5 pb-3 transition-opacity ${isRunning ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="grid grid-cols-6 gap-x-3 gap-y-3.5">
             <div className="col-span-3 space-y-1.5">
               <label className="text-[11px] font-medium text-white/40 uppercase tracking-widest">Work</label>
@@ -495,7 +586,7 @@ export default function App() {
                 <button onClick={() => adjustValue(setWorkTime, -1, 'workTime')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
-                <div className="flex-1 text-center font-mono text-base">{formatTime(workTime)}</div>
+                <EditableValue settingKey="workTime" value={workTime} isTime label="Work" onCommit={setWorkTime} className="text-base" />
                 <button onClick={() => adjustValue(setWorkTime, 1, 'workTime')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
@@ -508,7 +599,7 @@ export default function App() {
                 <button onClick={() => adjustValue(setRestTime, -0.5, 'restTime')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
-                <div className="flex-1 text-center font-mono text-base">{formatTime(restTime)}</div>
+                <EditableValue settingKey="restTime" value={restTime} isTime label="Rest" onCommit={setRestTime} className="text-base" />
                 <button onClick={() => adjustValue(setRestTime, 0.5, 'restTime')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
@@ -521,7 +612,7 @@ export default function App() {
                 <button onClick={() => adjustValue(setSets, -1, 'sets')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
-                <div className="flex-1 text-center font-mono text-base">{sets}</div>
+                <EditableValue settingKey="sets" value={sets} isTime={false} label="Sets" onCommit={setSets} className="text-base" />
                 <button onClick={() => adjustValue(setSets, 1, 'sets')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
@@ -534,7 +625,7 @@ export default function App() {
                 <button onClick={() => adjustValue(setCycles, -1, 'cycles')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
-                <div className="flex-1 text-center font-mono text-base">{cycles}</div>
+                <EditableValue settingKey="cycles" value={cycles} isTime={false} label="Cycles" onCommit={setCycles} className="text-base" />
                 <button onClick={() => adjustValue(setCycles, 1, 'cycles')} className="px-3 h-full hover:bg-white/10 transition-colors cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
@@ -547,7 +638,7 @@ export default function App() {
                 <button onClick={() => adjustValue(setCycleBreak, -1, 'cycleBreak')} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer">
                   <Minus size={14} className="text-white/50" />
                 </button>
-                <div className="flex-1 text-center font-mono text-sm">{formatTime(cycleBreak)}</div>
+                <EditableValue settingKey="cycleBreak" value={cycleBreak} isTime label="C.Break" onCommit={setCycleBreak} className="text-sm" />
                 <button onClick={() => adjustValue(setCycleBreak, 1, 'cycleBreak')} className="px-1.5 h-full hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer">
                   <Plus size={14} className="text-white/50" />
                 </button>
